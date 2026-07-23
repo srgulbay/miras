@@ -249,11 +249,11 @@ img { max-width: 100%; height: auto; display: block; }
   letter-spacing: .18em; text-transform: uppercase;
   background: none; border: 0; cursor: default;
 }
-button.engagement__item, a.engagement__item {
+a.engagement__item {
   cursor: pointer;
   transition: color .25s, background .25s;
 }
-button.engagement__item:hover, a.engagement__item:hover {
+a.engagement__item:hover {
   color: var(--gold-hi); background: rgba(201, 163, 92, .06);
 }
 .engagement__item + .engagement__item { border-left: 1px solid rgba(201, 163, 92, .14); }
@@ -261,16 +261,6 @@ button.engagement__item:hover, a.engagement__item:hover {
   min-width: 2ch; color: var(--cream); font-size: .78rem; font-weight: 500;
   letter-spacing: .06em; text-align: right; font-variant-numeric: tabular-nums;
 }
-.engagement__heart {
-  color: var(--gold-lo); font-size: .9rem; line-height: 1;
-  transition: color .25s, transform .25s, filter .25s;
-}
-.engagement__like[aria-pressed="true"] .engagement__heart {
-  color: var(--gold-hi); transform: scale(1.12);
-  filter: drop-shadow(0 0 7px rgba(201, 163, 92, .55));
-}
-.engagement__like:disabled { cursor: wait; opacity: .65; }
-
 /* ── 3B albüm kutusu ────────────────────────────────────────── */
 .hero__art { display: flex; flex-direction: column; align-items: center; gap: 1.1rem; }
 .scene {
@@ -387,7 +377,10 @@ button.engagement__item:hover, a.engagement__item:hover {
   width: min(780px, 100%); margin: 0 auto;
   border-top: 1px solid rgba(201, 163, 92, .14);
 }
-.track { border-bottom: 1px solid rgba(201, 163, 92, .14); }
+.track {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  border-bottom: 1px solid rgba(201, 163, 92, .14);
+}
 .track__btn {
   position: relative;
   display: grid; grid-template-columns: 3.4rem 1fr auto auto;
@@ -423,6 +416,39 @@ button.engagement__item:hover, a.engagement__item:hover {
 .track__state { width: 30px; height: 30px; display: grid; place-items: center; color: var(--gold); }
 .track__state .ic-hover { opacity: 0; transition: opacity .25s; width: 15px; height: 15px; fill: currentColor; }
 .track__btn:hover .ic-hover { opacity: .85; }
+.track__community {
+  display: flex; align-items: center; gap: .15rem;
+  padding: .5rem .7rem .5rem .15rem;
+}
+.track__plays, .track__like {
+  min-width: 44px; min-height: 44px;
+  display: inline-flex; align-items: center; justify-content: center; gap: .28rem;
+  color: var(--faint); font-family: var(--sans); font-variant-numeric: tabular-nums;
+}
+.track__like {
+  padding: 0 .42rem; border: 0; border-radius: 999px;
+  background: none; cursor: pointer;
+  transition: color .25s, background .25s, transform .2s;
+}
+.track__like:not(:disabled):hover { color: var(--gold-hi); background: rgba(201, 163, 92, .08); }
+.track__like[aria-pressed="true"] {
+  color: var(--gold-hi); background: rgba(201, 163, 92, .1);
+}
+.track__like:disabled { cursor: not-allowed; opacity: .5; }
+.track__like[aria-busy="true"] { cursor: wait; }
+.track__metric-icon, .track__heart {
+  color: var(--gold-lo); font-size: .88rem; font-weight: 400; line-height: 1;
+}
+.track__heart { transition: color .25s, transform .25s, filter .25s; }
+.track__like[aria-pressed="true"] .track__heart {
+  color: var(--gold-hi); transform: scale(1.12);
+  filter: drop-shadow(0 0 6px rgba(201, 163, 92, .48));
+}
+.track__metric-count {
+  min-width: 1.3ch; color: var(--muted); font-size: .65rem;
+  font-weight: 500; line-height: 1; text-align: center;
+}
+.track__like[aria-pressed="true"] .track__metric-count { color: var(--cream); }
 
 /* aktif şarkı */
 .track--active .track__btn {
@@ -693,6 +719,31 @@ blockquote cite { font-size: .8rem; letter-spacing: .25em; text-transform: upper
   content: ""; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
   width: 3.5px; height: 3.5px; border-radius: 50%; background: var(--gold);
 }
+.pbtn--like {
+  width: auto; min-width: 52px; height: 44px; padding: 0 .5rem; gap: .3rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(201, 163, 92, .14); border-radius: 999px;
+}
+.pbtn--like[aria-pressed="true"] {
+  color: var(--gold-hi); background: rgba(201, 163, 92, .1);
+  border-color: rgba(201, 163, 92, .34);
+}
+.pbtn--like[aria-pressed="true"]::after { display: none; }
+.pbtn--like:disabled { cursor: not-allowed; opacity: .55; }
+.pbtn--like[aria-busy="true"] { cursor: wait; }
+.player-like__heart {
+  color: var(--gold-lo); font-size: 1rem; line-height: 1;
+  transition: color .25s, transform .25s, filter .25s;
+}
+.pbtn--like[aria-pressed="true"] .player-like__heart {
+  color: var(--gold-hi); transform: scale(1.12);
+  filter: drop-shadow(0 0 7px rgba(201, 163, 92, .55));
+}
+.player-like__count {
+  min-width: 1.4ch; color: var(--cream); font-size: .63rem;
+  font-weight: 500; line-height: 1; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .pbtn__badge {
   position: absolute; top: 2px; right: 2px;
   font-size: .52rem; font-weight: 600; color: #241a0b;
@@ -773,13 +824,14 @@ blockquote cite { font-size: .8rem; letter-spacing: .25em; text-transform: upper
 }
 
 @media (max-width: 720px) {
-  :root { --player-h: 132px; --frame-inset: 8px; }
+  :root { --player-h: 160px; --frame-inset: 8px; }
   .nav__links { display: none; }
   .nav { gap: 1rem; }
   .hero { padding-top: 5.5rem; }
   .hero__scroll { display: none; }
   .track__btn { grid-template-columns: 2.4rem 1fr auto; gap: .7rem; padding: .95rem .6rem; }
   .track__state { display: none; }
+  .track__community { gap: 0; padding: .4rem .35rem .4rem 0; }
   .track__title { font-size: .9rem; letter-spacing: .12em; }
   .hero__engagement { width: min(100%, 420px); }
   .engagement__item {
@@ -790,8 +842,17 @@ blockquote cite { font-size: .8rem; letter-spacing: .25em; text-transform: upper
   .community__form { padding: 1.35rem 1.1rem; }
   .community__submit, .comments__more { width: 100%; }
   .comment__time { margin-left: 0; flex-basis: 100%; }
-  .player__row { grid-template-columns: minmax(0, 1fr) auto; }
-  .player__side { display: none; }
+  .player__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "now side"
+      "controls controls";
+    gap: .35rem .75rem;
+  }
+  .player__now { grid-area: now; }
+  .player__controls { grid-area: controls; justify-self: center; }
+  .player__side { grid-area: side; display: flex; gap: 0; }
+  .player__side .player__time, .player__side .player__vol { display: none; }
   .player__wave { height: 34px; }
   .player__now { gap: .6rem; }
   .player__cover { width: 42px; height: 42px; }
@@ -800,11 +861,13 @@ blockquote cite { font-size: .8rem; letter-spacing: .25em; text-transform: upper
   .pbtn svg { width: 17px; height: 17px; }
   .pbtn--play { width: 48px; height: 48px; margin: 0 .2rem; }
   .pbtn--play svg { width: 20px; height: 20px; }
+  .pbtn--like { width: auto; min-width: 50px; padding-inline: .42rem; }
   blockquote p { font-size: 1.4rem; }
 }
 
-@media (max-width: 380px) {
-  #btn-shuffle, #btn-repeat { display: none; }
+@media (max-width: 520px) {
+  .track__btn { grid-template-columns: 2.4rem minmax(0, 1fr); }
+  .track__dur { display: none; }
 }
 
 @media (max-width: 420px) {
@@ -813,5 +876,4 @@ blockquote cite { font-size: .8rem; letter-spacing: .25em; text-transform: upper
   .btn { padding: .9rem 1.4rem; font-size: .72rem; letter-spacing: .22em; }
   .engagement__item { flex-wrap: wrap; gap: .25rem .42rem; }
   .engagement__label { flex-basis: 100%; }
-  .engagement__like .engagement__label { order: -1; }
 }

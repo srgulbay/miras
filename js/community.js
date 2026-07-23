@@ -11,6 +11,7 @@ const els = {
   playCount:    $id("play-count"),
   likeButton:   $id("like-button"),
   likeCount:    $id("like-count"),
+  likeSummaryCount: $id("like-summary-count"),
   commentCount: $id("comment-count"),
   form:         $id("comments-form"),
   name:         $id("comment-name"),
@@ -41,6 +42,40 @@ const API_TIMEOUT_MS = 12_000;
 const staticHost = location.protocol === "file:" || /\.github\.io$/i.test(location.hostname);
 const moreDefaultText = els.more.textContent.trim() || "Daha fazla yorum";
 const submitButton = els.form.querySelector('[type="submit"]');
+const trackLabels = new Map(
+  typeof TRACKS !== "undefined" && Array.isArray(TRACKS)
+    ? TRACKS.map(track => [
+        track.slug,
+        track.title + (track.variant ? ` · ${track.variant}` : ""),
+      ])
+    : []
+);
+const trackUi = new Map();
+
+document.querySelectorAll(".track[data-track-slug]").forEach(row => {
+  const trackSlug = row.dataset.trackSlug;
+  const playsWrap = row.querySelector("[data-track-plays-wrap]");
+  const playsLabel = row.querySelector("[data-track-plays-label]");
+  const playCount = row.querySelector("[data-track-plays]");
+  const likeButton = row.querySelector("[data-track-like]");
+  const likeCount = row.querySelector("[data-track-likes]");
+  if (
+    trackSlug &&
+    playsWrap &&
+    playsLabel &&
+    playCount &&
+    likeButton &&
+    likeCount
+  ) {
+    trackUi.set(trackSlug, {
+      playsWrap,
+      playsLabel,
+      playCount,
+      likeButton,
+      likeCount,
+    });
+  }
+});
 
 const state = {
   apiAvailable: null,
@@ -48,6 +83,8 @@ const state = {
   liked: false,
   likePending: false,
   counts: { plays: null, likes: null, comments: null },
+  trackStats: new Map(),
+  trackLikePending: new Set(),
   commentsLoading: false,
   commentsLoaded: false,
   nextCursor: null,
@@ -95,6 +132,12 @@ function setCommentsStatus(message, kind = "") {
 }
 
 function isCount(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "boolean" ||
+    (typeof value === "string" && !/^\d+$/.test(value))
+  ) return false;
   const n = Number(value);
   return Number.isSafeInteger(n) && n >= 0;
 }
@@ -116,12 +159,13 @@ function updateCounts(partial = {}) {
 
   els.playCount.textContent = formattedCount(state.counts.plays);
   els.likeCount.textContent = formattedCount(state.counts.likes);
+  els.likeSummaryCount.textContent = formattedCount(state.counts.likes);
   els.commentCount.textContent = formattedCount(state.counts.comments);
 
   els.playCount.title = isCount(state.counts.plays)
     ? `${numberFormat.format(state.counts.plays)} dinlenme`
     : "Dinlenme bilgisi kullanılamıyor";
-  els.likeCount.title = isCount(state.counts.likes)
+  els.likeSummaryCount.title = isCount(state.counts.likes)
     ? `${numberFormat.format(state.counts.likes)} beğeni`
     : "Beğeni bilgisi kullanılamıyor";
   els.commentCount.title = isCount(state.counts.comments)
@@ -169,6 +213,85 @@ function renderLikeState() {
     : (state.liked ? "Beğeniyi kaldır" : "Albümü beğen");
 }
 
+function normalizeTrackEngagement(raw) {
+  if (
+    !raw ||
+    typeof raw.trackSlug !== "string" ||
+    !trackUi.has(raw.trackSlug) ||
+    !isCount(raw.plays) ||
+    !isCount(raw.likes) ||
+    !isCount(raw.comments)
+  ) {
+    return null;
+  }
+  return {
+    trackSlug: raw.trackSlug,
+    plays: Number(raw.plays),
+    likes: Number(raw.likes),
+    comments: Number(raw.comments),
+    liked: raw.liked === true,
+  };
+}
+
+function renderTrackEngagement(trackSlug) {
+  const ui = trackUi.get(trackSlug);
+  if (!ui) return;
+  const stats = state.trackStats.get(trackSlug);
+  const label = trackLabels.get(trackSlug) || "Parça";
+  const playsText = stats ? formattedCount(stats.plays) : "—";
+  const likesText = stats ? formattedCount(stats.likes) : "—";
+  const available = state.apiAvailable === true && Boolean(stats);
+  const pending = state.trackLikePending.has(trackSlug);
+  const unavailable = state.apiAvailable === false;
+
+  ui.playCount.textContent = playsText;
+  ui.likeCount.textContent = likesText;
+  ui.playsLabel.textContent = stats
+    ? "Dinlenme:"
+    : unavailable
+      ? "Dinlenme sayısı şu anda kullanılamıyor:"
+      : "Dinlenme sayısı yükleniyor:";
+  ui.playsWrap.title = stats
+    ? `${numberFormat.format(stats.plays)} dinlenme`
+    : unavailable
+      ? "Dinlenme sayısı şu anda kullanılamıyor"
+      : "Dinlenme sayısı yükleniyor";
+  ui.likeButton.setAttribute("aria-pressed", String(stats?.liked === true));
+  ui.likeButton.setAttribute(
+    "aria-label",
+    state.apiAvailable === false
+      ? `${label} beğenisi şu anda kullanılamıyor`
+      : stats
+        ? `${stats.liked ? "Beğeniyi kaldır" : "Parçayı beğen"}: ${label}, ${likesText} beğeni`
+        : `${label} beğenisi yükleniyor`
+  );
+  ui.likeButton.title = unavailable
+    ? `${label} beğenisi şu anda kullanılamıyor`
+    : stats?.liked
+      ? `${label} beğenisini kaldır`
+      : `${label} parçasını beğen`;
+  ui.likeButton.disabled = !available || pending;
+  if (pending) ui.likeButton.setAttribute("aria-busy", "true");
+  else ui.likeButton.removeAttribute("aria-busy");
+}
+
+function renderAllTrackEngagement() {
+  for (const trackSlug of trackUi.keys()) renderTrackEngagement(trackSlug);
+}
+
+function setTrackEngagement(rows) {
+  if (!Array.isArray(rows)) return false;
+  const next = new Map();
+  for (const raw of rows) {
+    const normalized = normalizeTrackEngagement(raw);
+    if (normalized) next.set(normalized.trackSlug, normalized);
+  }
+  if (next.size !== trackUi.size) return false;
+  state.trackStats = next;
+  renderAllTrackEngagement();
+  return true;
+}
+
 function setFormAvailable(available) {
   for (const control of els.form.elements) control.disabled = !available;
   els.form.setAttribute("aria-disabled", String(!available));
@@ -187,6 +310,7 @@ function setUnavailable(message, permanent = false) {
   els.more.disabled = true;
   setFormAvailable(false);
   updateCounts();
+  renderAllTrackEngagement();
   setCommentsStatus(message, "unavailable");
   announce(message);
 }
@@ -200,6 +324,7 @@ function setAvailable() {
   els.more.disabled = false;
   setFormAvailable(true);
   renderLikeState();
+  renderAllTrackEngagement();
 }
 
 function requestId() {
@@ -353,6 +478,67 @@ els.likeButton.addEventListener("click", async () => {
     renderLikeState();
   }
 });
+
+async function toggleTrackLike(trackSlug) {
+  const previous = state.trackStats.get(trackSlug);
+  if (
+    state.apiAvailable !== true ||
+    !previous ||
+    state.trackLikePending.has(trackSlug)
+  ) return;
+
+  const desiredLiked = !previous.liked;
+  const optimistic = {
+    ...previous,
+    liked: desiredLiked,
+    likes: Math.max(0, previous.likes + (desiredLiked ? 1 : -1)),
+  };
+  state.trackLikePending.add(trackSlug);
+  state.trackStats.set(trackSlug, optimistic);
+  renderTrackEngagement(trackSlug);
+
+  try {
+    const result = await api("/api/likes", {
+      method: "PUT",
+      body: { trackSlug, liked: desiredLiked },
+      headers: { "Idempotency-Key": requestId("track-like") },
+    });
+    if (
+      result.trackSlug !== trackSlug ||
+      typeof result.liked !== "boolean" ||
+      !isCount(result.likes)
+    ) {
+      throw new ApiError("Parça beğeni yanıtı geçersiz.");
+    }
+    const current = state.trackStats.get(trackSlug) || optimistic;
+    state.trackStats.set(trackSlug, {
+      ...current,
+      liked: result.liked,
+      likes: Number(result.likes),
+    });
+    const label = trackLabels.get(trackSlug) || "Parça";
+    announce(
+      result.liked
+        ? `${label} parçasını beğendiniz.`
+        : `${label} beğeniniz kaldırıldı.`
+    );
+  } catch (error) {
+    const current = state.trackStats.get(trackSlug) || previous;
+    state.trackStats.set(trackSlug, {
+      ...current,
+      liked: previous.liked,
+      likes: previous.likes,
+    });
+    announce(serverMessage(error, "Parça beğenisi kaydedilemedi. Lütfen yeniden deneyin."));
+  } finally {
+    state.trackLikePending.delete(trackSlug);
+    renderTrackEngagement(trackSlug);
+  }
+}
+
+for (const [trackSlug, ui] of trackUi) {
+  ui.likeButton.addEventListener("click", () => toggleTrackLike(trackSlug));
+}
 
 /* ── Yorumlar ───────────────────────────────────────────────── */
 function cleanText(value, maxLength) {
@@ -891,6 +1077,16 @@ async function sendPulse(session) {
       session.serverAccumulatedMs = accumulated;
     }
     if (isCount(result.plays)) updateCounts({ plays: result.plays });
+    if (isCount(result.trackPlays)) {
+      const previous = state.trackStats.get(session.trackSlug);
+      if (previous) {
+        state.trackStats.set(session.trackSlug, {
+          ...previous,
+          plays: Number(result.trackPlays),
+        });
+        renderTrackEngagement(session.trackSlug);
+      }
+    }
 
     if (result.counted === true || session.serverAccumulatedMs >= session.thresholdMs) {
       session.completed = true;
@@ -978,6 +1174,9 @@ async function bootstrap() {
       if (!result.counts || !["plays", "likes", "comments"].every(key => isCount(result.counts[key]))) {
         throw new ApiError("Etkileşim yanıtı geçersiz.");
       }
+      if (!setTrackEngagement(result.tracks)) {
+        throw new ApiError("Parça etkileşim yanıtı geçersiz.");
+      }
       state.liked = result.liked === true;
       updateCounts(result.counts);
       setAvailable();
@@ -1015,6 +1214,7 @@ addEventListener("online", () => {
 populateTrackSelect();
 setupListenTracking();
 updateCounts();
+renderAllTrackEngagement();
 
 if (staticHost) {
   setUnavailable(

@@ -44,7 +44,17 @@ export async function getEngagement(config, actorHash = null) {
             jsonb_build_object(
               'trackSlug', t.slug,
               'plays', s.plays::text,
-              'comments', s.comments::text
+              'likes', s.likes::text,
+              'comments', s.comments::text,
+              'liked', (
+                ${actorHash}::text IS NOT NULL
+                AND EXISTS (
+                  SELECT 1
+                  FROM track_likes l
+                  WHERE l.actor_hash = ${actorHash}
+                    AND l.track_slug = t.slug
+                )
+              )
             )
             ORDER BY t.position
           )
@@ -73,7 +83,9 @@ export async function getEngagement(config, actorHash = null) {
     tracks: (Array.isArray(album.tracks) ? album.tracks : []).map((track) => ({
       trackSlug: track.trackSlug,
       plays: count(track.plays),
+      likes: count(track.likes),
       comments: count(track.comments),
+      liked: Boolean(track.liked),
     })),
   };
 }
@@ -103,6 +115,41 @@ export async function setAlbumLike(config, actorHash, liked) {
     WHERE s.singleton = 1
   `;
   return {
+    liked: Boolean(rows[0]?.liked),
+    likes: count(rows[0]?.likes ?? 0),
+  };
+}
+
+export async function setTrackLike(config, actorHash, trackSlug, liked) {
+  const sql = await getDatabase(config);
+  if (liked) {
+    await sql`
+      INSERT INTO track_likes (actor_hash, track_slug)
+      VALUES (${actorHash}, ${trackSlug})
+      ON CONFLICT (actor_hash, track_slug) DO NOTHING
+    `;
+  } else {
+    await sql`
+      DELETE FROM track_likes
+      WHERE actor_hash = ${actorHash}
+        AND track_slug = ${trackSlug}
+    `;
+  }
+
+  const rows = await sql`
+    SELECT
+      s.likes::text,
+      EXISTS (
+        SELECT 1
+        FROM track_likes
+        WHERE actor_hash = ${actorHash}
+          AND track_slug = ${trackSlug}
+      ) AS liked
+    FROM track_stats s
+    WHERE s.track_slug = ${trackSlug}
+  `;
+  return {
+    trackSlug,
     liked: Boolean(rows[0]?.liked),
     likes: count(rows[0]?.likes ?? 0),
   };

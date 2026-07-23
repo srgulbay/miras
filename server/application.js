@@ -103,18 +103,26 @@ export function createApplication(overrides = {}) {
     if (typeof body.liked !== "boolean") {
       throw unprocessable("Beğeni durumu doğru veya yanlış olmalıdır.");
     }
+    const hasTrackSlug = Object.prototype.hasOwnProperty.call(body, "trackSlug");
+    const trackSlug = hasTrackSlug ? validateTrackSlug(body.trackSlug) : null;
 
     const config = resolveConfig(configSource);
     const identity = getAnonymousIdentity(request, config, { create: true });
     await enforceRateLimit(request, config, identity, "like", RATE_RULES.like);
-    const result = await repository.setAlbumLike(
-      config,
-      identity.subject("like"),
-      body.liked,
-    );
+    const actorHash = identity.subject("like");
+    const result = trackSlug
+      ? await repository.setTrackLike(config, actorHash, trackSlug, body.liked)
+      : await repository.setAlbumLike(config, actorHash, body.liked);
+    const message = trackSlug
+      ? result.liked
+        ? "Parça beğenildi."
+        : "Parça beğenisi kaldırıldı."
+      : result.liked
+        ? "Albüm beğenildi."
+        : "Albüm beğenisi kaldırıldı.";
     return jsonResponse(
       200,
-      result.liked ? "Albüm beğenildi." : "Albüm beğenisi kaldırıldı.",
+      message,
       result,
       { setCookie: identity.setCookie },
     );

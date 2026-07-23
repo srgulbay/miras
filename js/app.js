@@ -63,8 +63,9 @@ $("#total-dur").textContent = `${Math.round(totalSec / 60)} dakika`;
 TRACKS.forEach((t, i) => {
   const li = document.createElement("li");
   li.className = "track";
+  li.dataset.trackSlug = t.slug;
   li.innerHTML = `
-    <button class="track__btn" data-i="${i}"
+    <button class="track__btn" type="button" data-i="${i}"
             aria-label="${trackName(t, i)}, çal">
       <span class="track__num">
         <span class="num">${String(i + 1).padStart(2, "0")}.</span>
@@ -78,7 +79,20 @@ TRACKS.forEach((t, i) => {
       <span class="track__state" aria-hidden="true">
         <svg class="ic-hover" viewBox="0 0 24 24"><path d="M8 5.7v12.6c0 .8.9 1.3 1.6.9l10-6.3c.6-.4.6-1.4 0-1.8l-10-6.3c-.7-.4-1.6.1-1.6.9Z"/></svg>
       </span>
-    </button>`;
+    </button>
+    <div class="track__community" role="group" aria-label="${trackName(t, i)} etkileşimi">
+      <span class="track__plays" data-track-plays-wrap="${t.slug}"
+            title="Dinlenme sayısı yükleniyor">
+        <span class="sr-only" data-track-plays-label="${t.slug}">Dinlenme sayısı yükleniyor:</span>
+        <span class="track__metric-icon" aria-hidden="true">♪</span>
+        <strong class="track__metric-count" data-track-plays="${t.slug}">—</strong>
+      </span>
+      <button class="track__like" type="button" data-track-like="${t.slug}"
+              aria-pressed="false" aria-label="Parçayı beğen" disabled>
+        <span class="track__heart" aria-hidden="true">♥</span>
+        <strong class="track__metric-count" data-track-likes="${t.slug}">—</strong>
+      </button>
+    </div>`;
   els.list.appendChild(li);
 });
 const rows = $$(".track", els.list);

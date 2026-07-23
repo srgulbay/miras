@@ -27,14 +27,52 @@ CREATE TABLE IF NOT EXISTS album_stats (
 CREATE TABLE IF NOT EXISTS track_stats (
   track_slug varchar(80) PRIMARY KEY REFERENCES tracks(slug) ON DELETE RESTRICT,
   plays bigint NOT NULL DEFAULT 0 CHECK (plays >= 0),
+  likes bigint NOT NULL DEFAULT 0,
   comments bigint NOT NULL DEFAULT 0 CHECK (comments >= 0),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE track_stats
+  ADD COLUMN IF NOT EXISTS likes bigint NOT NULL DEFAULT 0;
+
+ALTER TABLE track_stats
+  ALTER COLUMN likes SET DEFAULT 0;
+
+UPDATE track_stats
+SET likes = 0
+WHERE likes IS NULL;
+
+ALTER TABLE track_stats
+  ALTER COLUMN likes SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'track_stats'::regclass
+      AND conname = 'track_stats_likes_nonnegative'
+  ) THEN
+    ALTER TABLE track_stats
+      ADD CONSTRAINT track_stats_likes_nonnegative CHECK (likes >= 0);
+  END IF;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS album_likes (
   actor_hash char(64) PRIMARY KEY CHECK (actor_hash ~ '^[0-9a-f]{64}$'),
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS track_likes (
+  actor_hash char(64) NOT NULL CHECK (actor_hash ~ '^[0-9a-f]{64}$'),
+  track_slug varchar(80) NOT NULL REFERENCES tracks(slug) ON DELETE RESTRICT,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (actor_hash, track_slug)
+);
+
+CREATE INDEX IF NOT EXISTS track_likes_track_created_idx
+  ON track_likes (track_slug, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS listen_sessions (
   id uuid PRIMARY KEY,
@@ -163,6 +201,66 @@ CREATE TRIGGER album_likes_counter_trigger
 AFTER INSERT OR DELETE ON album_likes
 FOR EACH ROW EXECUTE FUNCTION update_album_like_counter();
 
+CREATE OR REPLACE FUNCTION update_track_like_counter()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  target_track_slug varchar(80);
+  delta integer;
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.track_slug IS DISTINCT FROM OLD.track_slug THEN
+      UPDATE track_stats
+      SET likes = GREATEST(0, likes - 1),
+          updated_at = now()
+      WHERE track_slug = OLD.track_slug;
+
+      UPDATE track_stats
+      SET likes = likes + 1,
+          updated_at = now()
+      WHERE track_slug = NEW.track_slug;
+    END IF;
+    RETURN NULL;
+  END IF;
+
+  target_track_slug := CASE
+    WHEN TG_OP = 'INSERT' THEN NEW.track_slug
+    ELSE OLD.track_slug
+  END;
+  delta := CASE WHEN TG_OP = 'INSERT' THEN 1 ELSE -1 END;
+
+  UPDATE track_stats
+  SET likes = GREATEST(0, likes + delta),
+      updated_at = now()
+  WHERE track_slug = target_track_slug;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS track_likes_counter_trigger ON track_likes;
+CREATE TRIGGER track_likes_counter_trigger
+AFTER INSERT OR DELETE OR UPDATE OF track_slug ON track_likes
+FOR EACH ROW EXECUTE FUNCTION update_track_like_counter();
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM schema_migrations
+    WHERE version = '002-track-likes'
+  ) THEN
+    UPDATE track_stats s
+    SET likes = (
+          SELECT count(*)
+          FROM track_likes l
+          WHERE l.track_slug = s.track_slug
+        ),
+        updated_at = now();
+  END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION update_listen_counter()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -239,6 +337,10 @@ FOR EACH ROW EXECUTE FUNCTION update_comment_counter();
 
 INSERT INTO schema_migrations (version)
 VALUES ('001-community-core')
+ON CONFLICT (version) DO NOTHING;
+
+INSERT INTO schema_migrations (version)
+VALUES ('002-track-likes')
 ON CONFLICT (version) DO NOTHING;
 
 COMMIT;

@@ -39,22 +39,45 @@ function cookieFrom(response) {
 
 function createFakeRepository() {
   const likedActors = new Set();
+  const trackLikedActors = new Map([
+    ["01-feryad-akustik", new Set()],
+  ]);
   const comments = new Map();
   let plays = 0;
   return {
     async getEngagement(_config, actorHash) {
+      const trackActors = trackLikedActors.get("01-feryad-akustik");
       return {
         plays,
         likes: likedActors.size,
         comments: [...comments.values()].filter((item) => item.status === "visible").length,
         liked: actorHash ? likedActors.has(actorHash) : false,
-        tracks: [],
+        tracks: [{
+          trackSlug: "01-feryad-akustik",
+          plays,
+          likes: trackActors.size,
+          comments: [...comments.values()].filter(
+            (item) => item.status === "visible"
+              && item.trackSlug === "01-feryad-akustik",
+          ).length,
+          liked: actorHash ? trackActors.has(actorHash) : false,
+        }],
       };
     },
     async setAlbumLike(_config, actorHash, liked) {
       if (liked) likedActors.add(actorHash);
       else likedActors.delete(actorHash);
       return { liked: likedActors.has(actorHash), likes: likedActors.size };
+    },
+    async setTrackLike(_config, actorHash, trackSlug, liked) {
+      const trackActors = trackLikedActors.get(trackSlug);
+      if (liked) trackActors.add(actorHash);
+      else trackActors.delete(actorHash);
+      return {
+        trackSlug,
+        liked: trackActors.has(actorHash),
+        likes: trackActors.size,
+      };
     },
     async createListenSession(_config, input) {
       return { id: input.id, trackSlug: input.trackSlug };
@@ -149,7 +172,82 @@ test("engagement yanıtı UI sözleşmesindeki counts yapısını korur", async 
   const body = await response.json();
   assert.deepEqual(body.counts, { plays: 0, likes: 0, comments: 0 });
   assert.equal(body.liked, false);
-  assert.deepEqual(body.tracks, []);
+  assert.deepEqual(body.tracks, [{
+    trackSlug: "01-feryad-akustik",
+    plays: 0,
+    likes: 0,
+    comments: 0,
+    liked: false,
+  }]);
+});
+
+test("parça beğenisi trackSlug ile idempotent ayarlanır ve engagement'a yansır", async () => {
+  const app = createTestApp();
+  const first = await app.likes.PUT(mutation("/api/likes", "PUT", {
+    trackSlug: "01-feryad-akustik",
+    liked: true,
+  }));
+  assert.equal(first.status, 200);
+  const firstBody = await first.json();
+  assert.deepEqual(
+    {
+      trackSlug: firstBody.trackSlug,
+      likes: firstBody.likes,
+      liked: firstBody.liked,
+    },
+    { trackSlug: "01-feryad-akustik", likes: 1, liked: true },
+  );
+  const cookie = cookieFrom(first);
+  assert.ok(cookie);
+
+  const repeated = await app.likes.PUT(mutation("/api/likes", "PUT", {
+    trackSlug: "01-feryad-akustik",
+    liked: true,
+  }, cookie));
+  assert.deepEqual(
+    {
+      likes: (await repeated.clone().json()).likes,
+      liked: (await repeated.json()).liked,
+    },
+    { likes: 1, liked: true },
+  );
+
+  const engagement = await app.engagement.GET(new Request(
+    "https://miras.example/api/engagement",
+    { headers: { cookie } },
+  ));
+  assert.deepEqual((await engagement.json()).tracks[0], {
+    trackSlug: "01-feryad-akustik",
+    plays: 0,
+    likes: 1,
+    comments: 0,
+    liked: true,
+  });
+
+  const removed = await app.likes.PUT(mutation("/api/likes", "PUT", {
+    trackSlug: "01-feryad-akustik",
+    liked: false,
+  }, cookie));
+  assert.deepEqual(
+    {
+      trackSlug: (await removed.clone().json()).trackSlug,
+      likes: (await removed.clone().json()).likes,
+      liked: (await removed.json()).liked,
+    },
+    { trackSlug: "01-feryad-akustik", likes: 0, liked: false },
+  );
+});
+
+test("geçersiz trackSlug parça beğenisi yerine albümü değiştirmeden reddedilir", async () => {
+  for (const trackSlug of ["olmayan-parca", "", null]) {
+    const app = createTestApp();
+    const response = await app.likes.PUT(mutation("/api/likes", "PUT", {
+      trackSlug,
+      liked: true,
+    }));
+    assert.equal(response.status, 422);
+    assert.equal((await response.json()).code, "GECERSIZ_SARKI");
+  }
 });
 
 test("listen start token üretir, pulse yalnız aynı anonim cookie ile çalışır", async () => {
