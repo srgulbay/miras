@@ -1,0 +1,14 @@
+{
+  "name": "MİRAS — Çağrı",
+  "short_name": "MİRAS",
+  "description": "Sanal sanatçı Çağrı'nın ilk albümü — 12 eseri şimdi dinleyin.",
+  "lang": "tr",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#070605",
+  "theme_color": "#0a0908",
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
