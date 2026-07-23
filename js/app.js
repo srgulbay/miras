@@ -44,6 +44,16 @@ let shuffled = false;
 let repeat   = 0;          // 0 kapalı · 1 tümü · 2 tek
 let order    = TRACKS.map((_, i) => i);
 
+const trackName = (t, i) =>
+  `${String(i + 1).padStart(2, "0")}. ${t.title}${t.variant ? " (" + t.variant + ")" : ""}`;
+
+function updateWaveA11y(current = audio.currentTime, duration = audio.duration || TRACKS[cur].dur) {
+  const now = Math.max(0, Math.min(duration, current || 0));
+  els.wave.setAttribute("aria-valuemax", Math.round(duration));
+  els.wave.setAttribute("aria-valuenow", Math.round(now));
+  els.wave.setAttribute("aria-valuetext", `${fmt(now)} / ${fmt(duration)}`);
+}
+
 /* ── Süre toplamları ───────────────────────────────────────── */
 const totalSec = TRACKS.reduce((a, t) => a + t.dur, 0);
 $("#stat-dur").textContent  = `${Math.round(totalSec / 60)} dk`;
@@ -55,7 +65,7 @@ TRACKS.forEach((t, i) => {
   li.className = "track";
   li.innerHTML = `
     <button class="track__btn" data-i="${i}"
-            aria-label="${String(i + 1).padStart(2, "0")}. ${t.title}${t.variant ? " (" + t.variant + ")" : ""}, çal">
+            aria-label="${trackName(t, i)}, çal">
       <span class="track__num">
         <span class="num">${String(i + 1).padStart(2, "0")}.</span>
         <span class="eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
@@ -78,10 +88,16 @@ const srcOf = i => `audio/${TRACKS[i].slug}.mp3`;
 
 function markRows() {
   rows.forEach((r, i) => {
-    r.classList.toggle("track--active",  i === cur);
-    r.classList.toggle("track--playing", i === cur && !audio.paused);
-    r.classList.toggle("track--paused",  i === cur &&  audio.paused);
-    if (i !== cur) r.querySelector(".track__btn").style.setProperty("--prog", 0);
+    const active = i === cur;
+    const playing = active && !audio.paused;
+    const btn = r.querySelector(".track__btn");
+    r.classList.toggle("track--active", active);
+    r.classList.toggle("track--playing", playing);
+    r.classList.toggle("track--paused", active && audio.paused);
+    btn.setAttribute("aria-label", `${trackName(TRACKS[i], i)}, ${playing ? "duraklat" : "çal"}`);
+    if (active) btn.setAttribute("aria-current", "true");
+    else btn.removeAttribute("aria-current");
+    if (!active) btn.style.setProperty("--prog", 0);
   });
 }
 
@@ -94,6 +110,7 @@ function loadTrack(i, autoplay) {
   els.title.textContent = t.title + (t.variant ? ` · ${t.variant}` : "");
   els.tTot.textContent  = fmt(t.dur);
   els.tCur.textContent  = "0:00";
+  updateWaveA11y(0, t.dur);
   history.replaceState(null, "", `#t${cur + 1}`);
   drawWave(0);
   markRows();
@@ -141,6 +158,7 @@ els.prev.addEventListener("click", goPrev);
 els.shuffle.addEventListener("click", () => {
   shuffled = !shuffled;
   els.shuffle.setAttribute("aria-pressed", shuffled);
+  els.shuffle.setAttribute("aria-label", shuffled ? "Karışık çalmayı kapat" : "Karışık çal");
   if (shuffled) {
     order = TRACKS.map((_, i) => i);
     for (let i = order.length - 1; i > 0; i--) {
@@ -159,7 +177,10 @@ els.shuffle.addEventListener("click", () => {
 
 els.repeat.addEventListener("click", () => {
   repeat = (repeat + 1) % 3;
+  const repeatText = repeat === 0 ? "kapalı" : repeat === 1 ? "albüm" : "tek şarkı";
   els.repeat.setAttribute("aria-pressed", repeat > 0);
+  els.repeat.setAttribute("aria-label", `Tekrar: ${repeatText}`);
+  els.repeat.title = repeat === 0 ? "Tekrar kapalı" : repeat === 1 ? "Albüm tekrarı" : "Tek şarkı tekrarı";
   els.repBadge.hidden = repeat !== 2;
   toast(repeat === 0 ? "Tekrar kapalı" : repeat === 1 ? "Albüm tekrarı açık" : "Tek şarkı tekrarı açık");
 });
@@ -222,6 +243,7 @@ audio.addEventListener("timeupdate", () => {
   els.tCur.textContent = fmt(audio.currentTime);
   const d = audio.duration || TRACKS[cur].dur;
   const p = d ? audio.currentTime / d : 0;
+  updateWaveA11y(audio.currentTime, d);
   rows[cur].querySelector(".track__btn").style.setProperty("--prog", p);
   if ("mediaSession" in navigator && audio.duration) {
     try {
@@ -229,7 +251,10 @@ audio.addEventListener("timeupdate", () => {
     } catch (_) {}
   }
 });
-audio.addEventListener("loadedmetadata", () => { els.tTot.textContent = fmt(audio.duration); });
+audio.addEventListener("loadedmetadata", () => {
+  els.tTot.textContent = fmt(audio.duration);
+  updateWaveA11y(audio.currentTime, audio.duration);
+});
 
 /* ── Media Session (kilit ekranı kontrolleri) ──────────────── */
 function setMediaSession(t) {
@@ -318,10 +343,25 @@ els.wave.addEventListener("pointermove", e => {
 });
 els.wave.addEventListener("pointerup",   () => { seeking = false; });
 els.wave.addEventListener("pointerleave", () => { hoverP = -1; drawWave(progress()); });
+els.wave.addEventListener("keydown", e => {
+  if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(e.code)) return;
+  e.preventDefault();
+  if (!started) loadTrack(cur, true);
+  const d = audio.duration || TRACKS[cur].dur;
+  if (e.code === "Home") audio.currentTime = 0;
+  else if (e.code === "End") audio.currentTime = d;
+  else {
+    const delta = e.code === "ArrowRight" ? 5 : -5;
+    audio.currentTime = Math.max(0, Math.min(d, audio.currentTime + delta));
+  }
+  updateWaveA11y(audio.currentTime, d);
+  drawWave(progress());
+});
 
 /* ── Klavye kısayolları ────────────────────────────────────── */
 addEventListener("keydown", e => {
-  if (e.target.matches("input, textarea")) return;
+  if (e.target instanceof Element &&
+      e.target.closest("input, textarea, button, a, select, [contenteditable='true'], [role='slider']")) return;
   switch (e.code) {
     case "Space":      e.preventDefault(); els.play.click(); break;
     case "ArrowRight": if (started) audio.currentTime = Math.min((audio.duration || 1e9), audio.currentTime + 10); break;
@@ -354,6 +394,7 @@ function toast(msg) {
 }
 els.title.textContent = TRACKS[cur].title + (TRACKS[cur].variant ? ` · ${TRACKS[cur].variant}` : "");
 els.tTot.textContent = fmt(TRACKS[cur].dur);
+updateWaveA11y(0, TRACKS[cur].dur);
 markRows();
 els.player.classList.add("player--on");
 
