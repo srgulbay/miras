@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   MİRAS — çalar, dalga formu, 3B kutu ve sahne efektleri
+   MİRAS · çalar, dalga formu, 3B kutu ve sahne efektleri
    ═══════════════════════════════════════════════════════════════ */
 (() => {
 "use strict";
@@ -55,13 +55,14 @@ TRACKS.forEach((t, i) => {
   li.className = "track";
   li.innerHTML = `
     <button class="track__btn" data-i="${i}"
-            aria-label="${String(i + 1).padStart(2, "0")}. ${t.title}${t.variant ? " (" + t.variant + ")" : ""} — çal">
+            aria-label="${String(i + 1).padStart(2, "0")}. ${t.title}${t.variant ? " (" + t.variant + ")" : ""}, çal">
       <span class="track__num">
         <span class="num">${String(i + 1).padStart(2, "0")}.</span>
         <span class="eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
       </span>
       <span class="track__title">${t.title}
-        ${t.variant ? `<span class="track__tag"${/classic/i.test(t.variant) ? ' lang="en"' : ""}>${t.variant}</span>` : ""}
+        ${t.variant ? `<span class="track__tag">${t.variant}</span>` : ""}
+        ${t.soz ? `<span class="track__soz">Söz: ${t.soz}</span>` : ""}
       </span>
       <span class="track__dur">${fmt(t.dur)}</span>
       <span class="track__state" aria-hidden="true">
@@ -104,7 +105,7 @@ function safePlay() {
   started = true;
   els.player.classList.add("player--on");
   audio.play().catch(err => {
-    if (err.name !== "AbortError") toast("Çalma başlatılamadı — tekrar deneyin.");
+    if (err.name !== "AbortError") toast("Çalma başlatılamadı, tekrar deneyin.");
     syncPlayIcon();
   });
 }
@@ -204,17 +205,17 @@ function syncPlayIcon() {
   audio.addEventListener(ev, () => { syncPlayIcon(); markRows(); }));
 
 audio.addEventListener("playing", () => {
-  document.title = `▶ ${TRACKS[cur].title} — MİRAS · Çağrı`;
+  document.title = `▶ ${TRACKS[cur].title} · MİRAS · Çağrı`;
   // sıradaki parçayı sessizce önbelleğe al
   const nxt = srcOf(nextIndex(1));
   if (!preloader.src.endsWith(nxt)) { preloader.src = nxt; preloader.load(); }
 });
-audio.addEventListener("pause", () => { document.title = "MİRAS — Çağrı | Albüm"; });
+audio.addEventListener("pause", () => { document.title = "MİRAS · Çağrı | Albüm"; });
 audio.addEventListener("ended", () => goNext(false));
 audio.addEventListener("error", () => {
   if (!started) return;
   syncPlayIcon();
-  toast("Şarkı yüklenemedi — bağlantınızı kontrol edin.");
+  toast("Şarkı yüklenemedi, bağlantınızı kontrol edin.");
 });
 
 audio.addEventListener("timeupdate", () => {
