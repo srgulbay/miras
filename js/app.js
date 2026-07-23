@@ -104,6 +104,7 @@ function markRows() {
 function loadTrack(i, autoplay) {
   cur = (i + TRACKS.length) % TRACKS.length;
   const t = TRACKS[cur];
+  audio.dataset.trackSlug = t.slug;
   audio.src = srcOf(cur);
   audio.preload = "auto";
   audio.load();
@@ -394,6 +395,7 @@ function toast(msg) {
 }
 els.title.textContent = TRACKS[cur].title + (TRACKS[cur].variant ? ` · ${TRACKS[cur].variant}` : "");
 els.tTot.textContent = fmt(TRACKS[cur].dur);
+audio.dataset.trackSlug = TRACKS[cur].slug;
 updateWaveA11y(0, TRACKS[cur].dur);
 markRows();
 els.player.classList.add("player--on");

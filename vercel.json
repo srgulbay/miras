@@ -1,6 +1,18 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
   "cleanUrls": true,
+  "outputDirectory": "dist",
+  "regions": ["fra1"],
   "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "private, no-store, max-age=0" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "same-origin" }
+      ]
+    },
     {
       "source": "/audio/(.*)",
       "headers": [

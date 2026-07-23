@@ -92,7 +92,7 @@
     <a href="#sarkilar">Şarkılar</a>
     <a href="#hakkinda">Hakkında</a>
   </nav>
-  <button class="nav__cta" data-action="play-album">
+  <button class="nav__cta" data-action="play-album" type="button">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.7v12.6c0 .8.9 1.3 1.6.9l10-6.3c.6-.4.6-1.4 0-1.8l-10-6.3c-.7-.4-1.6.1-1.6.9Z"/></svg>
     Dinle
   </button>
@@ -117,13 +117,13 @@
     <div class="hero__inner">
       <div class="hero__text">
         <p class="eyebrow reveal"><span class="eyebrow__name">Çağrı</span></p>
-        <h1 class="hero__title reveal" aria-label="Miras">m<span class="dotless" aria-hidden="true">ı</span>ras</h1>
+        <h1 class="hero__title reveal"><span aria-hidden="true">m<span class="dotless">ı</span>ras</span><span class="sr-only">Miras</span></h1>
         <p class="hero__tag reveal">Kadim bir sesin dijital yankısı</p>
         <p class="hero__desc reveal">Hoca Ahmed Yesevî'nin hikmetinden Fuzûlî'nin gazeline, oradan bugünün
         şiirine: asırların sözü yeni bir sesle yankılanıyor. On iki eserlik bir yolculuk; feryattan vuslata,
         aşkın afetinden geriye kalana.</p>
         <div class="hero__actions reveal">
-          <button class="btn btn--gold" data-action="play-album">
+          <button class="btn btn--gold" data-action="play-album" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.7v12.6c0 .8.9 1.3 1.6.9l10-6.3c.6-.4.6-1.4 0-1.8l-10-6.3c-.7-.4-1.6.1-1.6.9Z"/></svg>
             Albümü Dinle
           </button>
@@ -136,6 +136,22 @@
           <div class="hero__statsep" aria-hidden="true"></div>
           <div><dt>Yıl</dt><dd>2026</dd></div>
         </dl>
+        <div class="hero__engagement reveal" id="engagement" aria-busy="true">
+          <span class="engagement__item">
+            <span class="engagement__label">Dinlenme</span>
+            <strong class="engagement__count" id="play-count">—</strong>
+          </span>
+          <button class="engagement__item engagement__like" id="like-button" type="button"
+                  aria-pressed="false" aria-label="MİRAS albümünü beğen" disabled>
+            <span class="engagement__heart" aria-hidden="true">♥</span>
+            <span class="engagement__label">Beğeni</span>
+            <strong class="engagement__count" id="like-count">—</strong>
+          </button>
+          <a class="engagement__item" href="#yorumlar">
+            <span class="engagement__label">Yorum</span>
+            <strong class="engagement__count" id="comment-count">—</strong>
+          </a>
+        </div>
       </div>
 
       <div class="hero__art">
@@ -218,6 +234,74 @@
     </div>
   </section>
 
+  <!-- ═══════════════ DİNLEYİCİ DEFTERİ ═══════════════ -->
+  <section class="community" id="yorumlar" aria-labelledby="yorumlar-title">
+    <div class="section-head reveal">
+      <svg class="ornament" viewBox="0 0 220 30" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round">
+          <path d="M10 15 H86 M134 15 H210"/>
+          <path d="M97 15c4-6 10-6 13 0 3-6 9-6 13 0-4 6-10 6-13 0-3 6-9 6-13 0Z"/>
+          <path d="M86 15c2-2 4-2 6 0-2 2-4 2-6 0Zm42 0c2-2 4-2 6 0-2 2-4 2-6 0Z"/>
+        </g>
+        <circle cx="110" cy="6.5" r="1.6" fill="currentColor"/><circle cx="110" cy="23.5" r="1.6" fill="currentColor"/>
+      </svg>
+      <h2 id="yorumlar-title">Dinleyici Defteri</h2>
+      <p class="section-sub">Miras sende nasıl yankılandı?</p>
+    </div>
+
+    <div class="community__layout">
+      <form class="community__form reveal" id="comments-form" novalidate>
+        <div class="community__form-head">
+          <p class="community__kicker">Bir iz bırak</p>
+          <h3>Yorumunu paylaş</h3>
+          <p>Albümün tamamına veya seçtiğin bir esere dair birkaç satır yaz.</p>
+        </div>
+
+        <div class="field">
+          <label for="comment-name">Görünen adın</label>
+          <input id="comment-name" name="name" type="text" autocomplete="nickname"
+                 minlength="2" maxlength="40" required placeholder="Adın veya mahlasın">
+        </div>
+
+        <div class="field">
+          <label for="comment-track">Hangi eser için?</label>
+          <select id="comment-track" name="track">
+            <option value="">Albüm geneli</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="comment-body">Yorumun</label>
+          <textarea id="comment-body" name="body" rows="6" minlength="3" maxlength="800"
+                    aria-describedby="comment-body-hint"
+                    required placeholder="Miras sende ne bıraktı?"></textarea>
+          <span class="field__hint" id="comment-body-hint">En fazla 800 karakter</span>
+        </div>
+
+        <div class="community__honeypot" aria-hidden="true">
+          <label for="comment-website">İnternet sitesi</label>
+          <input id="comment-website" name="website" type="text" tabindex="-1" autocomplete="off">
+        </div>
+
+        <p class="community__privacy">E-posta istemiyoruz. Adın ve yorumun veritabanında saklanır;
+          güvenlik için ham IP adresi tutulmaz.</p>
+        <button class="btn btn--gold community__submit" type="submit">Yorumu Gönder</button>
+        <p class="community__status" id="comments-status" role="status" aria-live="polite"></p>
+      </form>
+
+      <div class="community__feed reveal">
+        <div class="community__feed-head">
+          <p class="community__kicker">Defterden</p>
+          <h3>Son yorumlar</h3>
+        </div>
+        <div class="comments" id="comments-list" aria-busy="true"></div>
+        <button class="btn btn--ghost comments__more" id="comments-more" type="button" hidden>
+          Daha Fazla Yorum
+        </button>
+      </div>
+    </div>
+  </section>
+
   <footer class="footer">
     <p class="footer__title"><span aria-hidden="true">m<span class="dotless">ı</span>ras</span><span class="sr-only">Miras</span></p>
     <p class="footer__artist">Çağrı · 2026</p>
@@ -226,7 +310,7 @@
 </main>
 
 <!-- ═══════════════ ÇALAR ÇUBUĞU ═══════════════ -->
-<div class="player" id="player" role="region" aria-label="Müzik çalar">
+<section class="player" id="player" aria-label="Müzik çalar">
   <div class="player__wave-wrap">
     <p class="sr-only" id="wave-help">Şarkıda gezinmek için sol ve sağ ok tuşlarını kullanın.</p>
     <canvas id="wave" class="player__wave" role="slider" tabindex="0"
@@ -243,21 +327,21 @@
     </div>
 
     <div class="player__controls">
-      <button class="pbtn" id="btn-shuffle" aria-label="Karışık çal" aria-pressed="false" title="Karışık">
+      <button class="pbtn" id="btn-shuffle" type="button" aria-label="Karışık çal" aria-pressed="false" title="Karışık">
         <svg viewBox="0 0 24 24"><path d="M3 6h3.6c1.2 0 2.3.6 3 1.6l4.8 6.8c.7 1 1.8 1.6 3 1.6H21m0 0-2.5-2.5M21 16l-2.5 2.5M3 16h3.6c.8 0 1.5-.3 2.1-.7M21 6h-3.6c-.8 0-1.5.3-2.1.7M21 6l-2.5-2.5M21 6l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <button class="pbtn" id="btn-prev" aria-label="Önceki şarkı" title="Önceki">
+      <button class="pbtn" id="btn-prev" type="button" aria-label="Önceki şarkı" title="Önceki">
         <svg viewBox="0 0 24 24"><path d="M17.8 5.6v12.8c0 .7-.8 1.1-1.4.7l-9-6.4c-.5-.4-.5-1.1 0-1.5l9-6.4c.6-.4 1.4 0 1.4.8ZM6 5.5v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <button class="pbtn pbtn--play" id="btn-play" data-state="play" aria-label="Çal">
+      <button class="pbtn pbtn--play" id="btn-play" type="button" data-state="play" aria-label="Çal">
         <svg class="ic-play" viewBox="0 0 24 24"><path d="M8.2 5.9v12.2c0 .8.9 1.3 1.6.9l9.7-6.1c.6-.4.6-1.4 0-1.8L10 5c-.7-.4-1.6.1-1.6.9Z"/></svg>
         <svg class="ic-pause" viewBox="0 0 24 24"><path d="M7.5 5.5h2.6v13H7.5Zm6.4 0h2.6v13h-2.6Z"/></svg>
         <svg class="ic-spin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="40 14" stroke-linecap="round"/></svg>
       </button>
-      <button class="pbtn" id="btn-next" aria-label="Sonraki şarkı" title="Sonraki">
+      <button class="pbtn" id="btn-next" type="button" aria-label="Sonraki şarkı" title="Sonraki">
         <svg viewBox="0 0 24 24"><path d="M6.2 5.6v12.8c0 .7.8 1.1 1.4.7l9-6.4c.5-.4.5-1.1 0-1.5l-9-6.4c-.6-.4-1.4 0-1.4.8ZM18 5.5v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <button class="pbtn" id="btn-repeat" aria-label="Tekrar: kapalı" aria-pressed="false" title="Tekrar kapalı">
+      <button class="pbtn" id="btn-repeat" type="button" aria-label="Tekrar: kapalı" aria-pressed="false" title="Tekrar kapalı">
         <svg viewBox="0 0 24 24"><path d="M4 13v-2a4 4 0 0 1 4-4h12m0 0-2.8-2.8M20 7l-2.8 2.8M20 11v2a4 4 0 0 1-4 4H4m0 0 2.8 2.8M4 17l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="pbtn__badge" id="repeat-badge" hidden>1</span>
       </button>
@@ -266,14 +350,14 @@
     <div class="player__side">
       <span class="player__time"><span id="t-cur">0:00</span><span class="player__timesep">/</span><span id="t-tot">0:00</span></span>
       <div class="player__vol">
-        <button class="pbtn" id="btn-mute" aria-label="Sesi kapat" title="Ses">
+        <button class="pbtn" id="btn-mute" type="button" aria-label="Sesi kapat" title="Ses">
           <svg viewBox="0 0 24 24"><path d="M4 9.5v5c0 .6.4 1 1 1h2.6l4.7 3.7c.7.5 1.7 0 1.7-.8V5.6c0-.8-1-1.3-1.7-.8L7.6 8.5H5c-.6 0-1 .4-1 1Z M17 9c1.7 1.7 1.7 4.3 0 6M19.5 6.5c3 3 3 8 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <input type="range" id="vol" min="0" max="1" step="0.02" value="0.9" aria-label="Ses düzeyi">
       </div>
     </div>
   </div>
-</div>
+</section>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
@@ -281,5 +365,6 @@
 
 <script src="js/tracks.js" defer></script>
 <script src="js/app.js" defer></script>
+<script src="js/community.js" defer></script>
 </body>
 </html>
